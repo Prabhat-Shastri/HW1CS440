@@ -3,7 +3,7 @@ import heapq
 import random
 import sys
 
-GRID_SPACE = 20
+GRID_SPACE = 101
 DEAD_CHANCE = 0.3
 TOTAL_CELLS = (GRID_SPACE ** 2)
 TOTAL_BOARDS = 50
@@ -91,39 +91,21 @@ def generateGrid():
 
 # print(f'{TOTAL_BOARDS} grids generated.')
 
+def generateStates(grid):
+    startRow, startCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
+    while grid[startRow][startCol] != 0:
+        startRow, startCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
+    start = (startRow,startCol)
+
+    goalRow, goalCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
+    while grid[goalRow][goalCol] != 0 or (goalRow, goalCol) == start:
+        goalRow, goalCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
+    goal = (goalRow, goalCol)
+
+    return start, goal
 
 def mDistance(a, b):
     return abs(a[0]-b[0]) + abs(a[1]-b[1])
-
-
-grid = generateGrid()
-botGrid = [[-1 for _ in range(GRID_SPACE)] for _ in range(GRID_SPACE)]
-
-startRow, startCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
-while grid[startRow][startCol] != 0:
-    startRow, startCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
-start = (startRow,startCol)
-
-goalRow, goalCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
-while grid[goalRow][goalCol] != 0 or (goalRow, goalCol) == start:
-    goalRow, goalCol = random.randint(0, GRID_SPACE - 1), random.randint(0, GRID_SPACE - 1)
-goal = (goalRow, goalCol)
-
-botGrid[startRow][startCol] = 0
-
-minHeap = []
-visited = set()
-heapq.heappush(minHeap, (0 + mDistance(start, goal), startRow, startCol, 0))
-
-gValues = {
-    start: 0
-}
-parents = {
-    start: start
-}
-neighbors = [[0,-1],[0,1],[-1,0],[1,0]]
-print(start)
-print(goal)
 
 def constructPath(path, goal):
     if goal not in path:
@@ -138,13 +120,17 @@ def constructPath(path, goal):
         p.append(cur)
     return p
 
-def aStar(start, goal):
+def aStar(s, goal):
+    neighbors = [[0,-1],[0,1],[-1,0],[1,0]]
+
     minHeap = []
     visited = set()
-    gValues = {start: 0}
-    parents = {start: start}
-    heapq.heappush(minHeap, (0 + mDistance(start, goal), startRow, startCol, 0))
+    gValues = {s: 0}
+    parents = {s: s}
+    heapq.heappush(minHeap, (0 + mDistance(s, goal), s[0], s[1], 0))
+    i = 0
     while minHeap:
+        i+=1
         curCost, curRow, curCol, curG= heapq.heappop(minHeap)
 
         if curG != gValues[(curRow, curCol)]: continue
@@ -176,42 +162,115 @@ def aStar(start, goal):
                 parents[(newRow, newCol)] = (curRow, curCol)
     return constructPath(parents, goal)
 
+def aStarTieBreaker(botGrid, s, goal, tieType: str):
+    neighbors = [[0,-1],[0,1],[-1,0],[1,0]]
 
-cur = start
-botGrid[cur[0]][cur[1]] = 0
+    C = (GRID_SPACE ** 2)
 
-while True:
-    path = aStar(cur, goal)
-    print("planned path:", list(reversed(path)))
+    def tieBreaker(tieType, st, gl, gVal):
+        d = mDistance(st, gl)
+        return (C * (gVal + d)) - gVal if tieType == 'l' else (C * (gVal + d)) +gVal
 
-    if not path:
-        print("No path.")
-        break
+    minHeap = []
+    visited = set()
+    gValues = {s: 0}
+    parents = {s: s}
+    heapq.heappush(minHeap, (tieBreaker(tieType=tieType, st=s, gl=goal, gVal=0), s[0], s[1], 0))
+    i = 0
+    while minHeap:
+        i+=1
+        curCost, curRow, curCol, curG= heapq.heappop(minHeap)
+
+        if curG != gValues[(curRow, curCol)]: continue
+
+        if (curRow, curCol) == goal:
+            return constructPath(parents, goal), len(visited)
+
+        
+        
+        visited.add((curRow, curCol))
+
+        for dr, dc in neighbors:
+            newRow, newCol = curRow + dr, curCol + dc
+
+            if min(newRow, newCol) < 0 or max(newRow, newCol) > (GRID_SPACE - 1):
+                continue
+
+            if ((newRow, newCol)) in visited: 
+                continue
+
+            if botGrid[newRow][newCol] == 1:
+                continue
+
+            newG = gValues[(curRow, curCol)] + 1
+
+            if newG < gValues.get((newRow, newCol), float('inf')):
+                heapq.heappush(minHeap, (tieBreaker(tieType=tieType, st=(newRow, newCol), gl=goal, gVal=newG), newRow, newCol, newG))
+                gValues[(newRow, newCol)] = newG
+                parents[(newRow, newCol)] = (curRow, curCol)
+    return constructPath(parents, goal), len(visited)
 
 
-    path_forward = list(reversed(path))
 
-    replanned = False
-    for step in path_forward[1:]:
-        r, c = step
 
-        if grid[r][c] == 1:
-            botGrid[r][c] = 1
-            replanned = True
-            break
 
-        cur = step
-        botGrid[r][c] = 0
+def repeatedAStar(t: str):
+    grid = generateGrid()
+    botGrid = [[-1 for _ in range(GRID_SPACE)] for _ in range(GRID_SPACE)]
+
+    start, goal = generateStates(grid)
+    cur = start
+
+    totalExpanded = 0
+
+    while True:
+        path, expanded = aStarTieBreaker(botGrid, cur, goal, t)
+
+        totalExpanded += expanded
+
+        if not path:
+            print("No path.")
+            return totalExpanded
+
+
+        path_forward = list(reversed(path))
+
+        replanned = False
+        for step in path_forward[1:]:
+            r, c = step
+
+            if grid[r][c] == 1:
+                botGrid[r][c] = 1
+                replanned = True
+
+                break
+
+            cur = step
+            botGrid[r][c] = 0
+
+            if cur == goal:
+                print("Reached goal!")
+                replanned = False
+                return totalExpanded
 
         if cur == goal:
-            print("Reached goal!")
-            replanned = False
             break
+        if not replanned:
+            break
+    return
 
-    if cur == goal:
-        break
-    if not replanned:
-        break
+
+def FiftyBoardRepeatedAStarTieBreaker():
+    big_g_tie, little_g_tie = 0, 0
+    for i in range(TOTAL_BOARDS):
+        big_g_tie += repeatedAStar(t='l')
+        little_g_tie += repeatedAStar(t='s')
+
+    return (big_g_tie / TOTAL_BOARDS, little_g_tie / TOTAL_BOARDS)
+
+
+out = FiftyBoardRepeatedAStarTieBreaker()
+print(out)
 
 
 
