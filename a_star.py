@@ -7,7 +7,7 @@ import os
 import matplotlib.pyplot as plt
 
 GRID_SPACE = 101
-DEAD_CHANCE = 0.3
+DEAD_CHANCE = 1
 TOTAL_CELLS = (GRID_SPACE ** 2)
 TOTAL_BOARDS = 50
 GRIDWORLDS_DIR = "./gridworlds"
@@ -42,7 +42,7 @@ def observe_neighbors(grid, botGrid, r, c):
 def visualize_demo_matplotlib():
     """Run Repeated Forward A* on gridworld 1 with matplotlib animation: imshow + plot(path) + scatter(start, goal, agent)."""
     ensure_gridworlds_saved()
-    path1 = os.path.join(GRIDWORLDS_DIR, "gridworld_1.txt")
+    path1 = os.path.join(GRIDWORLDS_DIR, "gridworld_10.txt")
     if not os.path.isfile(path1):
         print("(Matplotlib demo skipped: gridworld_1.txt not found.)")
         return
@@ -53,7 +53,7 @@ def visualize_demo_matplotlib():
     cur = start
     totalExpanded = 0
 
-    fig, ax = plt.subplots(1, 1, figsize=(8, 8))
+    _, ax = plt.subplots(1, 1, figsize=(8, 8))
     plt.ion()
     ax.set_title("Repeated Forward A* — agent view (red=unobserved, white=unblocked, black=blocked)")
     ax.set_xlabel("col")
@@ -319,7 +319,7 @@ def repeatedAdaptiveAStar(t: str, grid = None, start = None, goal = None):
     if not grid:
         grid = generateGrid()
     botGrid = [[-1 for _ in range(GRID_SPACE)] for _ in range(GRID_SPACE)]
-    if not start or not goal:
+    if start is None or goal is None:
         start, goal = generateStates(grid)
     cur = start
 
@@ -365,7 +365,7 @@ def repeatedForwardAStar(t: str, grid = None, start = None, goal = None):
     if not grid:
         grid = generateGrid()
     botGrid = [[-1 for _ in range(GRID_SPACE)] for _ in range(GRID_SPACE)]
-    if not start or not goal:
+    if start is None or goal is None:
         start, goal = generateStates(grid)
     cur = start
 
@@ -409,7 +409,7 @@ def repeatedBackwardAStar(t: str, grid = None, start = None, goal = None):
     if not grid:
         grid = generateGrid()
     botGrid = [[-1 for _ in range(GRID_SPACE)] for _ in range(GRID_SPACE)]
-    if not start or not goal:
+    if start is None or goal is None:
         start, goal = generateStates(grid)
     cur = start
 
