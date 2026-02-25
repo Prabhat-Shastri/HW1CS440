@@ -3,11 +3,16 @@ import heapq
 import random
 import sys
 import numpy as np
+import os
+import matplotlib.pyplot as plt
 
 GRID_SPACE = 101
 DEAD_CHANCE = 0.3
 TOTAL_CELLS = (GRID_SPACE ** 2)
 TOTAL_BOARDS = 50
+GRIDWORLDS_DIR = "./gridworlds"
+
+
 
 
 def grid_to_rgb(grid, unknown=-1, safe=0, blocked=1):
@@ -303,10 +308,55 @@ def FiftyBoardRepeatedAStarTieBreaker():
     return (big_g_tie / TOTAL_BOARDS, little_g_tie / TOTAL_BOARDS)
 
 
+
+
+def ensure_gridworlds_saved():
+    """Generate and save 50 gridworlds if not present; return paths to the 50 files."""
+    os.makedirs(GRIDWORLDS_DIR, exist_ok=True)
+    paths = [os.path.join(GRIDWORLDS_DIR, f"gridworld_{i}.txt") for i in range(1, TOTAL_BOARDS + 1)]
+    if all(os.path.isfile(p) for p in paths):
+        return paths
+    for i, path in enumerate(paths):
+        g = generateGrid()
+        saveGrid(g, path)
+        print(f"Saved {path}")
+    return paths
+
+
+def FiftyBoardRepeatedAStarTieBreaker():
+    paths = ensure_gridworlds_saved()
+    grids = [loadGrid(p) for p in paths]
+    # t='l' = break ties in favor of larger g; t='s' = smaller g. Same start/goal per grid for fair comparison.
+    larger_g_tie, smaller_g_tie = 0, 0
+    for grid in grids:
+        start, goal = generateStates(grid)
+        larger_g_tie += repeatedAStar(t='l', grid=grid, start=start, goal=goal)
+        smaller_g_tie += repeatedAStar(t='s', grid=grid, start=start, goal=goal)
+    return (larger_g_tie / TOTAL_BOARDS, smaller_g_tie / TOTAL_BOARDS)
+
+
+def FiftyBoardForwardVsBackward():
+    paths = ensure_gridworlds_saved()
+    grids = [loadGrid(p) for p in paths]
+    forward_exp, backward_exp = 0, 0
+    for grid in grids:
+        start, goal = generateStates(grid)
+        forward_exp += repeatedAStar(t='l', grid=grid, start=start, goal=goal)
+        backward_exp += repeatedBackwardAStar(t='l', grid=grid, start=start, goal=goal)
+    return (forward_exp / TOTAL_BOARDS, backward_exp / TOTAL_BOARDS)
+
+
 out = FiftyBoardRepeatedAStarTieBreaker()
 print(out)
 
+part3 = FiftyBoardForwardVsBackward()
+print("Part 3 — Forward vs Backward (same 50 grids, tie-break larger g):")
+print("  Repeated Forward A*:  avg expansions =", part3[0])
+print("  Repeated Backward A*:  avg expansions =", part3[1])
 
-
+# ─── Visualization demo: matplotlib (imshow + plot path + scatter start/goal/agent) ───
+RUN_VISUALIZATION_DEMO = True
+if RUN_VISUALIZATION_DEMO:
+    visualize_demo_matplotlib()
 
 
